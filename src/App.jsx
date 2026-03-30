@@ -10,15 +10,20 @@ const ASSETS = [
 
 function getTradeLinks(asset) {
   const map = {
-    'S&P 500': { tradexyz: 'SPY',   hyperliquid: 'SPY'   },
-    'Oil':     { tradexyz: 'USOIL', hyperliquid: 'USOIL' },
-    'Gold':    { tradexyz: 'GOLD',  hyperliquid: 'GOLD'  },
+    'S&P 500': {
+      tradexyz:    'https://app.trade.xyz/?market=SP500',
+      hyperliquid: 'https://app.hyperliquid.xyz/trade/xyz:SP500',
+    },
+    'Gold': {
+      tradexyz:    'https://app.trade.xyz/?market=GOLD',
+      hyperliquid: 'https://app.hyperliquid.xyz/trade/xyz:GOLD',
+    },
+    'Oil': {
+      tradexyz:    'https://app.trade.xyz/?market=CL',
+      hyperliquid: 'https://app.hyperliquid.xyz/trade/xyz:CL',
+    },
   }
-  const symbols = map[asset?.label] ?? { tradexyz: '', hyperliquid: '' }
-  return {
-    tradexyz:    `https://app.trade.xyz/trade/${symbols.tradexyz}`,
-    hyperliquid: `https://app.hyperliquid.xyz/trade/${symbols.hyperliquid}`,
-  }
+  return map[asset?.label] ?? { tradexyz: 'https://app.trade.xyz', hyperliquid: 'https://app.hyperliquid.xyz' }
 }
 
 function getLeverageLabel(lev) {
