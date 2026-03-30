@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npm run:*)",
-      "Read(//home/pansta/dd-bot/**)"
+      "Read(//home/pansta/dd-bot/**)",
+      "Bash(curl:*)",
+      "Bash(npx vite:*)"
     ]
   }
 }

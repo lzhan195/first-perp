@@ -8,7 +8,7 @@
 
 html, body, #root {
   height: 100%;
-  background-color: #0f0f0f;
+  background-color: #f0f0f0;
 }
 
 /* Custom range slider */
@@ -27,9 +27,9 @@ input[type='range']::-webkit-slider-thumb {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #f59e0b;
-  border: 3px solid #0f0f0f;
-  box-shadow: 0 0 0 2px #f59e0b;
+  background: #00c805;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 2px #00c805;
   cursor: pointer;
   transition: transform 0.1s;
 }
@@ -42,39 +42,25 @@ input[type='range']::-moz-range-thumb {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #f59e0b;
-  border: 3px solid #0f0f0f;
-  box-shadow: 0 0 0 2px #f59e0b;
+  background: #00c805;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 2px #00c805;
   cursor: pointer;
   transition: transform 0.1s;
-}
-
-/* Loading screen background gradient pulse */
-@keyframes loading-bg-pulse {
-  0%, 100% {
-    background: radial-gradient(ellipse at 50% 60%, #1a1a1a 0%, #0f0f0f 70%);
-  }
-  50% {
-    background: radial-gradient(ellipse at 50% 60%, #232323 0%, #111111 70%);
-  }
-}
-
-.loading-bg {
-  animation: loading-bg-pulse 2.4s ease-in-out infinite;
 }
 
 /* Green glow pulse on CTA button */
 @keyframes glow-pulse {
   0%, 100% {
     box-shadow:
-      0 0 10px rgba(34, 197, 94, 0.35),
-      0 4px 20px rgba(34, 197, 94, 0.2);
+      0 0 10px rgba(0,200,5,0.25),
+      0 4px 20px rgba(0,200,5,0.15);
   }
   50% {
     box-shadow:
-      0 0 22px rgba(34, 197, 94, 0.7),
-      0 4px 30px rgba(34, 197, 94, 0.45),
-      0 0 60px rgba(34, 197, 94, 0.15);
+      0 0 22px rgba(0,200,5,0.5),
+      0 4px 30px rgba(0,200,5,0.3),
+      0 0 60px rgba(0,200,5,0.1);
   }
 }
 
