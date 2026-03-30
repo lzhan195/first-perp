@@ -1,17 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ASSETS = [
-  { id: 'spy', label: 'S&P 500', emoji: '📈', ticker: 'SPY',  hlSymbol: 'SPY'   },
-  { id: 'uso', label: 'Oil',     emoji: '🛢️', ticker: 'USO',  hlSymbol: 'USOIL' },
-  { id: 'gld', label: 'Gold',    emoji: '🥇', ticker: 'GLD',  hlSymbol: 'GOLD'  },
+  { id: 'spy', label: 'S&P 500', ticker: 'SPY',  hlSymbol: 'SPY'   },
+  { id: 'uso', label: 'Oil',     ticker: 'USO',  hlSymbol: 'USOIL' },
+  { id: 'gld', label: 'Gold',    ticker: 'GLD',  hlSymbol: 'GOLD'  },
 ]
 
 function getLeverageLabel(lev) {
-  if (lev <= 2) return '😌 Chill — good for beginners'
-  if (lev <= 5) return '😤 Spicy — moderate risk'
-  return '🔥 Degen — high risk'
+  if (lev <= 2) return 'Conservative — good for beginners'
+  if (lev <= 5) return 'Moderate — some risk'
+  return 'Aggressive — high risk'
 }
 
 function formatPrice(val) {
@@ -47,13 +47,11 @@ async function fetchFundingRate(hlSymbol) {
   })
   if (!res.ok) throw new Error(`Hyperliquid ${res.status}`)
   const payload = await res.json()
-  // API returns [meta, assetCtxs] array
   if (!Array.isArray(payload) || payload.length < 2) throw new Error('Unexpected shape')
   const [meta, assetCtxs] = payload
   const idx = meta.universe.findIndex((a) => a.name === hlSymbol)
   if (idx === -1 || !assetCtxs[idx]) throw new Error('Asset not found')
   const rate = parseFloat(assetCtxs[idx].funding)
-  // Treat missing, NaN, or exactly-zero as unavailable
   if (!isFinite(rate) || rate === 0) throw new Error('No valid rate')
   return (rate * 100).toFixed(4)
 }
@@ -82,47 +80,25 @@ Return ONLY a valid JSON object with exactly these fields:
   const data = await res.json()
   const text = data.content[0].text.trim()
 
-  // 1) Strip markdown fences and try a clean parse
   const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
   try {
     return JSON.parse(cleaned)
-  } catch (_) { /* fall through to brace extraction */ }
+  } catch (_) { /* fall through */ }
 
-  // 2) Find outermost { … } and parse that substring
   const start = text.indexOf('{')
   const end   = text.lastIndexOf('}')
   if (start !== -1 && end > start) {
     try {
       return JSON.parse(text.slice(start, end + 1))
-    } catch (_) { /* fall through to placeholder */ }
+    } catch (_) { /* fall through */ }
   }
 
-  // 3) Hardcoded placeholder so the UI never breaks
   return {
     thesis:      "This asset has been moving on macro trends and investor sentiment. Your direction reflects a view on near-term price momentum.",
-    risk:        "Markets can reverse quickly on unexpected news or data releases. Always be aware that leveraged trades can close automatically if price moves against you.",
+    risk:        "Markets can reverse quickly on unexpected news or data releases. Leveraged trades can close automatically if price moves against you.",
     perpExplain: "A perp is a bet on whether a price goes up or down — it never expires, so you can hold it as long as you want (while paying a small fee every 8 hours).",
     marketVibe:  "Conditions are mixed — watch for any major economic announcements before entering.",
   }
-}
-
-// ─── Price Status Dot ─────────────────────────────────────────────────────────
-
-function PriceDot({ status }) {
-  if (status === 'ok') {
-    return (
-      <span
-        className="inline-block w-1.5 h-1.5 rounded-full bg-[#22c55e] flex-shrink-0"
-        style={{ boxShadow: '0 0 5px #22c55e' }}
-        title="Live price"
-      />
-    )
-  }
-  if (status === 'delayed') {
-    return <span className="text-white/30 text-[10px] font-medium">delayed</span>
-  }
-  // loading — dim placeholder
-  return <span className="inline-block w-1.5 h-1.5 rounded-full bg-white/20 flex-shrink-0" />
 }
 
 // ─── Splash Screen ────────────────────────────────────────────────────────────
@@ -130,53 +106,24 @@ function PriceDot({ status }) {
 function SplashScreen({ visible }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white"
       style={{
-        background: '#0f0f0f',
         opacity: visible ? 1 : 0,
         transition: 'opacity 0.5s ease',
         pointerEvents: visible ? 'auto' : 'none',
       }}
     >
-      {/* Glow orb behind logo */}
-      <div
-        className="absolute"
-        style={{
-          width: 280,
-          height: 280,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(245,158,11,0.12) 0%, transparent 70%)',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -55%)',
-        }}
-      />
-
-      <div className="relative text-center px-8">
-        <div className="text-5xl font-extrabold tracking-tight text-white mb-3">
+      <div className="text-center px-8">
+        <div className="text-4xl font-extrabold tracking-tight text-[#1a1a1a] mb-2">
           First Perp
         </div>
-        <p className="text-white/55 text-lg font-medium mb-10">
+        <p className="text-[#737373] text-base font-medium mb-10">
           Your first trade, explained.
         </p>
-
-        {/* Powered-by row */}
-        <div className="flex items-center justify-center gap-2 flex-wrap">
-          {['Anthropic', 'TradeXYZ', 'Hyperliquid'].map((name, i) => (
-            <div key={name} className="flex items-center gap-2">
-              {i > 0 && <span className="text-white/20 text-xs">·</span>}
-              <span className="text-white/35 text-xs font-medium tracking-wide">{name}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Loading bar */}
-        <div className="mt-10 w-32 h-0.5 bg-white/10 rounded-full mx-auto overflow-hidden">
+        <div className="w-24 h-0.5 bg-[#e5e5e5] rounded-full mx-auto overflow-hidden">
           <div
-            className="h-full bg-[#f59e0b] rounded-full"
-            style={{
-              animation: 'splash-bar 1.4s ease-out forwards',
-            }}
+            className="h-full bg-[#00C805] rounded-full"
+            style={{ animation: 'splash-bar 1.4s ease-out forwards' }}
           />
         </div>
       </div>
@@ -193,53 +140,18 @@ function TickerTape({ prices, tickerFunding }) {
   const rate = tickerFunding ? `${tickerFunding}%` : '--'
 
   const text = `SPY ${spy}  ·  GOLD ${gld}  ·  OIL ${uso}  ·  Holding cost (8hr): ${rate}  ·  `
-  // Duplicate for seamless loop
   const content = text.repeat(4)
 
   return (
-    <div
-      className="overflow-hidden border-b border-white/[0.06]"
-      style={{ background: 'rgba(255,255,255,0.025)', height: '30px' }}
-    >
+    <div className="overflow-hidden border-b border-[#e5e5e5] bg-[#f5f5f5]" style={{ height: '28px' }}>
       <div
         className="flex items-center h-full whitespace-nowrap"
         style={{ animation: 'ticker-scroll 28s linear infinite' }}
       >
-        <span className="text-white/40 text-[11px] font-mono tracking-wide pr-4">
-          {content}
-        </span>
-        {/* Second copy ensures seamless loop */}
-        <span className="text-white/40 text-[11px] font-mono tracking-wide pr-4" aria-hidden>
-          {content}
-        </span>
+        <span className="text-[#737373] text-[11px] font-mono tracking-wide pr-4">{content}</span>
+        <span className="text-[#737373] text-[11px] font-mono tracking-wide pr-4" aria-hidden>{content}</span>
       </div>
     </div>
-  )
-}
-
-// ─── Presentation Mode Toggle ─────────────────────────────────────────────────
-
-function PresentToggle({ active, onToggle }) {
-  return (
-    <button
-      onClick={onToggle}
-      title={active ? 'Exit presentation mode' : 'Presentation mode (bigger text)'}
-      className="fixed top-3 right-3 z-40 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-150 active:scale-90"
-      style={{
-        background: active ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.06)',
-        border: `1px solid ${active ? 'rgba(245,158,11,0.5)' : 'rgba(255,255,255,0.1)'}`,
-      }}
-    >
-      {/* Simple projector/expand icon */}
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-        <rect x="1" y="4" width="14" height="9" rx="1.5"
-          stroke={active ? '#f59e0b' : 'rgba(255,255,255,0.5)'} strokeWidth="1.5" />
-        <line x1="8" y1="13" x2="8" y2="16"
-          stroke={active ? '#f59e0b' : 'rgba(255,255,255,0.5)'} strokeWidth="1.5" />
-        <line x1="5" y1="16" x2="11" y2="16"
-          stroke={active ? '#f59e0b' : 'rgba(255,255,255,0.5)'} strokeWidth="1.5" />
-      </svg>
-    </button>
   )
 }
 
@@ -254,9 +166,9 @@ function ProgressDots({ screen }) {
           key={i}
           className="rounded-full transition-all duration-500"
           style={{
-            width: i === filled ? '24px' : '8px',
-            height: '8px',
-            background: i <= filled ? '#f59e0b' : 'rgba(255,255,255,0.15)',
+            width: i === filled ? '20px' : '6px',
+            height: '6px',
+            background: i <= filled ? '#00C805' : '#e5e5e5',
           }}
         />
       ))}
@@ -264,56 +176,56 @@ function ProgressDots({ screen }) {
   )
 }
 
+// ─── Divider ──────────────────────────────────────────────────────────────────
+
+function Divider() {
+  return <div className="h-px bg-[#e5e5e5] mx-5" />
+}
+
 // ─── Screen 1 — Asset Selection ───────────────────────────────────────────────
 
 function Screen1({ prices, pricesStatus, onSelect }) {
   return (
-    <div className="flex flex-col px-5 pt-6 pb-8">
-      <div className="text-center mb-6">
-        <p className="text-[#f59e0b] text-xs uppercase tracking-[0.2em] font-semibold mb-2">
-          Step 1 of 3
-        </p>
-        <h1 className="text-[1.65rem] font-extrabold leading-tight tracking-tight">
-          Your first trade starts<br />with a hunch.
-        </h1>
-        <p className="text-white/50 mt-2 text-sm">
-          What do you think will move?
-        </p>
-      </div>
+    <div className="flex flex-col px-5 pt-6 pb-10">
+      <p className="text-[#00C805] text-xs font-semibold uppercase tracking-widest mb-3">
+        Step 1 of 3
+      </p>
+      <h1 className="text-[1.75rem] font-extrabold leading-tight tracking-tight text-balance mb-1">
+        What do you think will move?
+      </h1>
+      <p className="text-[#737373] text-sm mb-8">
+        Pick an asset to start your first perp trade.
+      </p>
 
-      <div className="flex flex-col gap-3">
-        {ASSETS.map((asset) => (
-          <button
-            key={asset.id}
-            onClick={() => onSelect(asset)}
-            className="flex items-center justify-between bg-white/[0.04] border border-white/[0.08] rounded-2xl px-5 py-5 min-h-[72px] transition-all duration-150 active:scale-[0.97] hover:bg-white/[0.08] hover:border-[#f59e0b]/40"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-[2rem] leading-none">{asset.emoji}</span>
+      <div className="flex flex-col">
+        {ASSETS.map((asset, i) => (
+          <div key={asset.id}>
+            {i > 0 && <Divider />}
+            <button
+              onClick={() => onSelect(asset)}
+              className="flex items-center justify-between w-full px-0 py-4 transition-colors duration-150 active:bg-[#f5f5f5] group"
+            >
               <div className="text-left">
-                <div className="text-base font-bold">{asset.label}</div>
-                <div className="text-white/35 text-xs">{asset.ticker}</div>
+                <div className="text-base font-semibold text-[#1a1a1a] group-hover:text-[#00C805] transition-colors">
+                  {asset.label}
+                </div>
+                <div className="text-[#737373] text-xs mt-0.5">{asset.ticker}</div>
               </div>
-            </div>
-            <div className="text-right">
-              <div className="text-[#f59e0b] font-mono font-bold text-xl tracking-tight">
-                {prices[asset.id]
-                  ? formatPrice(prices[asset.id])
-                  : <span className="text-white/30 text-base">--</span>}
+              <div className="text-right">
+                <div className="text-[#1a1a1a] font-mono font-bold text-base">
+                  {prices[asset.id] ? formatPrice(prices[asset.id]) : <span className="text-[#737373]">--</span>}
+                </div>
+                <div className="text-[#737373] text-xs mt-0.5">
+                  {pricesStatus === 'ok' ? 'live' : pricesStatus === 'delayed' ? 'delayed' : ''}
+                </div>
               </div>
-              <div className="flex items-center justify-end gap-1 mt-0.5">
-                <PriceDot status={pricesStatus} />
-                <span className="text-white/30 text-xs">
-                  {pricesStatus === 'delayed' ? '' : 'live'}
-                </span>
-              </div>
-            </div>
-          </button>
+            </button>
+          </div>
         ))}
       </div>
 
-      <p className="text-center text-white/25 text-xs mt-6">
-        This is a simulation — no real money involved.
+      <p className="text-center text-[#b3b3b3] text-xs mt-8">
+        Simulation only — no real money involved.
       </p>
     </div>
   )
@@ -323,39 +235,52 @@ function Screen1({ prices, pricesStatus, onSelect }) {
 
 function Screen2({ asset, onSelect }) {
   return (
-    <div className="flex flex-col px-5 pt-6 pb-8">
-      <div className="text-center mb-6">
-        <p className="text-[#f59e0b] text-xs uppercase tracking-[0.2em] font-semibold mb-2">
-          Step 2 of 3
-        </p>
-        <h1 className="text-[1.65rem] font-extrabold leading-tight tracking-tight">
-          Which way are you betting?
-        </h1>
-        <div className="flex items-center justify-center gap-2 mt-3">
-          <span className="text-lg">{asset?.emoji}</span>
-          <span className="text-white/60 text-sm font-medium">
-            You picked <span className="text-white font-semibold">{asset?.label}</span>
-          </span>
-        </div>
-      </div>
+    <div className="flex flex-col px-5 pt-6 pb-10">
+      <p className="text-[#00C805] text-xs font-semibold uppercase tracking-widest mb-3">
+        Step 2 of 3
+      </p>
+      <h1 className="text-[1.75rem] font-extrabold leading-tight tracking-tight text-balance mb-1">
+        Which way are you betting?
+      </h1>
+      <p className="text-[#737373] text-sm mb-8">
+        You picked <span className="text-[#1a1a1a] font-medium">{asset?.label}</span>. Now choose a direction.
+      </p>
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         <button
           onClick={() => onSelect('long')}
-          className="flex flex-col items-center justify-center bg-[#22c55e]/[0.07] border-2 border-[#22c55e]/30 rounded-2xl px-5 py-8 min-h-[130px] transition-all duration-150 active:scale-[0.97] hover:bg-[#22c55e]/[0.12] hover:border-[#22c55e]/60"
+          className="flex items-center justify-between border border-[#e5e5e5] rounded-xl px-5 py-5 transition-all duration-150 active:scale-[0.98] hover:border-[#00C805] hover:bg-[#f0fff0] group"
         >
-          <span className="text-4xl mb-2 leading-none">🟢</span>
-          <span className="text-xl font-extrabold text-[#22c55e] tracking-tight">It's going UP</span>
-          <span className="text-white/45 text-sm mt-1.5">You profit if price rises</span>
+          <div className="text-left">
+            <div className="text-base font-bold text-[#1a1a1a] group-hover:text-[#00C805] transition-colors">
+              Going Up
+            </div>
+            <div className="text-[#737373] text-sm mt-0.5">You profit if price rises</div>
+          </div>
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+            style={{ background: '#00C805' }}
+          >
+            ↑
+          </div>
         </button>
 
         <button
           onClick={() => onSelect('short')}
-          className="flex flex-col items-center justify-center bg-[#ef4444]/[0.07] border-2 border-[#ef4444]/30 rounded-2xl px-5 py-8 min-h-[130px] transition-all duration-150 active:scale-[0.97] hover:bg-[#ef4444]/[0.12] hover:border-[#ef4444]/60"
+          className="flex items-center justify-between border border-[#e5e5e5] rounded-xl px-5 py-5 transition-all duration-150 active:scale-[0.98] hover:border-[#ef4444] hover:bg-[#fff5f5] group"
         >
-          <span className="text-4xl mb-2 leading-none">🔴</span>
-          <span className="text-xl font-extrabold text-[#ef4444] tracking-tight">It's going DOWN</span>
-          <span className="text-white/45 text-sm mt-1.5">You profit if price falls</span>
+          <div className="text-left">
+            <div className="text-base font-bold text-[#1a1a1a] group-hover:text-[#ef4444] transition-colors">
+              Going Down
+            </div>
+            <div className="text-[#737373] text-sm mt-0.5">You profit if price falls</div>
+          </div>
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+            style={{ background: '#ef4444' }}
+          >
+            ↓
+          </div>
         </button>
       </div>
     </div>
@@ -369,28 +294,23 @@ function Screen3({ leverage, setLeverage, onContinue }) {
   const pct = ((leverage - 1) / 9) * 100
 
   return (
-    <div className="flex flex-col px-5 pt-6 pb-8">
-      <div className="text-center mb-6">
-        <p className="text-[#f59e0b] text-xs uppercase tracking-[0.2em] font-semibold mb-2">
-          Step 3 of 3
-        </p>
-        <h1 className="text-[1.65rem] font-extrabold leading-tight tracking-tight">
-          How bold are you feeling?
-        </h1>
-        <p className="text-white/50 mt-2 text-sm">
-          Your multiplier amplifies gains — and losses.
-        </p>
-      </div>
+    <div className="flex flex-col px-5 pt-6 pb-10">
+      <p className="text-[#00C805] text-xs font-semibold uppercase tracking-widest mb-3">
+        Step 3 of 3
+      </p>
+      <h1 className="text-[1.75rem] font-extrabold leading-tight tracking-tight text-balance mb-1">
+        How bold are you feeling?
+      </h1>
+      <p className="text-[#737373] text-sm mb-8">
+        Your multiplier amplifies both gains and losses.
+      </p>
 
-      {/* Slider card */}
-      <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-5 mb-4">
-        <div className="flex items-center justify-between mb-1">
-          <div>
-            <span className="text-white/50 text-sm font-medium">Multiplier</span>
-            <span className="text-white/25 text-xs ml-2">(called "leverage" on exchanges)</span>
-          </div>
-          <span className="text-[#f59e0b] font-extrabold text-3xl tracking-tight">
-            {leverage}<span className="text-xl">x</span>
+      {/* Slider */}
+      <div className="mb-6">
+        <div className="flex items-end justify-between mb-4">
+          <span className="text-[#737373] text-sm font-medium">Multiplier</span>
+          <span className="text-[#1a1a1a] font-extrabold text-3xl tracking-tight">
+            {leverage}<span className="text-xl font-bold">x</span>
           </span>
         </div>
 
@@ -401,13 +321,13 @@ function Screen3({ leverage, setLeverage, onContinue }) {
           step="1"
           value={leverage}
           onChange={(e) => setLeverage(Number(e.target.value))}
-          className="w-full mt-4"
+          className="w-full"
           style={{
-            background: `linear-gradient(to right, #f59e0b ${pct}%, rgba(255,255,255,0.1) ${pct}%)`,
+            background: `linear-gradient(to right, #00C805 ${pct}%, #e5e5e5 ${pct}%)`,
           }}
         />
 
-        <div className="flex justify-between mt-2">
+        <div className="flex justify-between mt-3">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
             <div
               key={v}
@@ -415,13 +335,13 @@ function Screen3({ leverage, setLeverage, onContinue }) {
               onClick={() => setLeverage(v)}
             >
               <div
-                className="w-0.5 h-2 rounded-full transition-all"
-                style={{ background: v <= leverage ? '#f59e0b' : 'rgba(255,255,255,0.15)' }}
+                className="w-0.5 h-1.5 rounded-full transition-all"
+                style={{ background: v <= leverage ? '#00C805' : '#e5e5e5' }}
               />
               {(v === 1 || v === 5 || v === 10) && (
                 <span
-                  className="text-[10px] font-medium transition-colors"
-                  style={{ color: v <= leverage ? '#f59e0b' : 'rgba(255,255,255,0.3)' }}
+                  className="text-[10px] font-medium"
+                  style={{ color: v <= leverage ? '#00C805' : '#b3b3b3' }}
                 >
                   {v}x
                 </span>
@@ -430,41 +350,40 @@ function Screen3({ leverage, setLeverage, onContinue }) {
           ))}
         </div>
 
-        <div
-          className="mt-4 text-center py-3 rounded-xl text-sm font-semibold"
-          style={{ background: 'rgba(255,255,255,0.05)' }}
-        >
+        <div className="mt-4 text-center py-2.5 rounded-lg bg-[#f5f5f5] text-[#737373] text-sm font-medium">
           {getLeverageLabel(leverage)}
         </div>
       </div>
 
-      {/* Example card */}
-      <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-5 mb-5">
-        <p className="text-white/40 text-xs uppercase tracking-wider mb-2 font-medium">
-          Live Example
+      <Divider />
+
+      {/* Example */}
+      <div className="py-5 mb-6">
+        <p className="text-[#737373] text-xs uppercase tracking-widest font-medium mb-3">
+          Example
         </p>
-        <p className="text-sm text-white/80 leading-relaxed">
-          With <span className="text-white font-bold">$100</span> and a{' '}
-          <span className="text-[#f59e0b] font-bold">{leverage}x</span> multiplier,
-          a 5% move =
+        <p className="text-sm text-[#1a1a1a] mb-3 leading-relaxed">
+          With <span className="font-bold">$100</span> and{' '}
+          <span className="font-bold text-[#1a1a1a]">{leverage}x</span> multiplier,
+          a 5% move equals:
         </p>
-        <div className="flex gap-4 mt-3">
-          <div className="flex-1 bg-[#22c55e]/10 border border-[#22c55e]/25 rounded-xl py-3 text-center">
-            <div className="text-[#22c55e] font-extrabold text-xl">+${pnl}</div>
-            <div className="text-white/40 text-xs mt-0.5">if right</div>
+        <div className="flex gap-3">
+          <div className="flex-1 border border-[#e5e5e5] rounded-xl py-3.5 text-center">
+            <div className="text-[#00C805] font-bold text-lg">+${pnl}</div>
+            <div className="text-[#737373] text-xs mt-0.5">if right</div>
           </div>
-          <div className="flex-1 bg-[#ef4444]/10 border border-[#ef4444]/25 rounded-xl py-3 text-center">
-            <div className="text-[#ef4444] font-extrabold text-xl">-${pnl}</div>
-            <div className="text-white/40 text-xs mt-0.5">if wrong</div>
+          <div className="flex-1 border border-[#e5e5e5] rounded-xl py-3.5 text-center">
+            <div className="text-[#ef4444] font-bold text-lg">-${pnl}</div>
+            <div className="text-[#737373] text-xs mt-0.5">if wrong</div>
           </div>
         </div>
       </div>
 
       <button
         onClick={onContinue}
-        className="w-full bg-[#f59e0b] text-black font-extrabold text-lg rounded-2xl py-4 min-h-[64px] transition-all duration-150 active:scale-[0.97] hover:bg-[#fbbf24] shadow-lg shadow-[#f59e0b]/20"
+        className="w-full bg-[#00C805] text-white font-bold text-base rounded-xl py-4 transition-all duration-150 active:scale-[0.98] hover:bg-[#00a804]"
       >
-        Build My Trade Summary →
+        Build My Trade Summary
       </button>
     </div>
   )
@@ -474,15 +393,15 @@ function Screen3({ leverage, setLeverage, onContinue }) {
 
 function Screen4() {
   return (
-    <div className="loading-bg flex flex-col items-center justify-center min-h-[70vh] px-5 gap-6 rounded-2xl mx-3 my-4">
-      <div className="flex gap-3">
-        <div className="w-3 h-3 rounded-full bg-[#f59e0b] pulse-dot-1" />
-        <div className="w-3 h-3 rounded-full bg-[#f59e0b] pulse-dot-2" />
-        <div className="w-3 h-3 rounded-full bg-[#f59e0b] pulse-dot-3" />
+    <div className="flex flex-col items-center justify-center min-h-[60vh] px-5 gap-5">
+      <div className="flex gap-2.5">
+        <div className="w-2.5 h-2.5 rounded-full bg-[#00C805] pulse-dot-1" />
+        <div className="w-2.5 h-2.5 rounded-full bg-[#00C805] pulse-dot-2" />
+        <div className="w-2.5 h-2.5 rounded-full bg-[#00C805] pulse-dot-3" />
       </div>
       <div className="text-center">
-        <p className="text-white font-semibold text-lg">Building your trade summary...</p>
-        <p className="text-white/40 text-sm mt-1">Asking Claude for analysis</p>
+        <p className="text-[#1a1a1a] font-semibold text-base">Building your trade summary...</p>
+        <p className="text-[#737373] text-sm mt-1">Asking Claude for analysis</p>
       </div>
     </div>
   )
@@ -490,97 +409,80 @@ function Screen4() {
 
 // ─── Screen 5 — Summary ───────────────────────────────────────────────────────
 
-function AICard({ icon, title, text }) {
+function AICard({ title, text }) {
   return (
-    <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4">
-      <div className="flex items-center gap-2 mb-2.5">
-        <span className="text-base leading-none">{icon}</span>
-        <span className="text-white/45 text-[11px] uppercase tracking-[0.15em] font-semibold">
-          {title}
-        </span>
-      </div>
-      <p className="text-sm text-white/85 leading-relaxed">{text}</p>
+    <div className="py-4">
+      <p className="text-[#737373] text-xs uppercase tracking-widest font-medium mb-2">{title}</p>
+      <p className="text-sm text-[#1a1a1a] leading-relaxed">{text}</p>
     </div>
   )
 }
 
 function TradeTicket({ asset, direction, leverage, price }) {
   const isLong = direction === 'long'
-  // Auto-close price: the level where your position closes automatically
   const autoClosePrice = price
     ? isLong
       ? price - price / leverage
       : price + price / leverage
     : null
 
-  const Row = ({ label, value, sub, valueClass = 'text-white font-semibold' }) => (
-    <div className="flex items-center justify-between py-2.5 border-b border-white/[0.06] last:border-0">
-      <div>
-        <span className="text-white/45 text-sm">{label}</span>
-        {sub && <span className="text-white/25 text-[11px] ml-1.5">{sub}</span>}
+  const Row = ({ label, value, sub, valueStyle = {} }) => (
+    <div className="flex items-center justify-between py-3 border-b border-[#e5e5e5] last:border-0">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[#737373] text-sm">{label}</span>
+        {sub && <span className="text-[#b3b3b3] text-xs">({sub})</span>}
       </div>
-      <span className={`text-sm ${valueClass}`}>{value}</span>
+      <span className="text-sm font-semibold text-[#1a1a1a]" style={valueStyle}>{value}</span>
     </div>
   )
 
   return (
-    <div
-      className="rounded-2xl p-4 mb-4"
-      style={{
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-      }}
-    >
-      <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/[0.06]">
-        <div className="flex items-center gap-2">
-          <span className="text-xl leading-none">{asset?.emoji}</span>
-          <span className="font-bold text-base tracking-tight">{asset?.label}</span>
-        </div>
+    <div className="border border-[#e5e5e5] rounded-xl overflow-hidden mb-5">
+      {/* Header */}
+      <div className="px-4 py-3 bg-[#f5f5f5] border-b border-[#e5e5e5] flex items-center justify-between">
+        <span className="font-semibold text-sm text-[#1a1a1a]">{asset?.label}</span>
         <div className="flex items-center gap-2">
           <span
-            className="px-2.5 py-1 rounded-lg text-xs font-extrabold uppercase tracking-wider"
+            className="px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide"
             style={
               isLong
-                ? { background: 'rgba(34,197,94,0.15)', color: '#22c55e' }
-                : { background: 'rgba(239,68,68,0.15)', color: '#ef4444' }
+                ? { background: '#dcfce7', color: '#16a34a' }
+                : { background: '#fee2e2', color: '#dc2626' }
             }
           >
-            {isLong ? '▲ LONG' : '▼ SHORT'}
+            {isLong ? 'Long' : 'Short'}
           </span>
-          <span className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-[#f59e0b]/15 text-[#f59e0b]">
-            {leverage}×
+          <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-[#e5e5e5] text-[#1a1a1a]">
+            {leverage}x
           </span>
         </div>
       </div>
 
-      <Row
-        label="Entry Price"
-        value={price ? formatPrice(price) : '--'}
-        valueClass="text-[#f59e0b] font-mono font-bold"
-      />
-      <Row
-        label="Multiplier"
-        sub="(leverage)"
-        value={`${leverage}× — ${leverage <= 2 ? 'Conservative' : leverage <= 5 ? 'Moderate' : 'Aggressive'}`}
-      />
-      <Row
-        label="Auto-close price"
-        sub="(est.)"
-        value={autoClosePrice ? formatPrice(autoClosePrice) : '--'}
-        valueClass={isLong ? 'text-[#ef4444] font-mono font-semibold' : 'text-[#22c55e] font-mono font-semibold'}
-      />
-      <Row
-        label="Position side"
-        value={isLong ? 'Profit if price rises' : 'Profit if price falls'}
-        valueClass={isLong ? 'text-[#22c55e] text-xs' : 'text-[#ef4444] text-xs'}
-      />
+      {/* Rows */}
+      <div className="px-4">
+        <Row label="Entry Price" value={price ? formatPrice(price) : '--'} valueStyle={{ fontFamily: 'monospace' }} />
+        <Row
+          label="Multiplier"
+          sub="leverage"
+          value={`${leverage}× — ${leverage <= 2 ? 'Conservative' : leverage <= 5 ? 'Moderate' : 'Aggressive'}`}
+        />
+        <Row
+          label="Auto-close price"
+          sub="est."
+          value={autoClosePrice ? formatPrice(autoClosePrice) : '--'}
+          valueStyle={{ color: isLong ? '#ef4444' : '#00C805', fontFamily: 'monospace' }}
+        />
+        <Row
+          label="Position side"
+          value={isLong ? 'Profit if price rises' : 'Profit if price falls'}
+          valueStyle={{ color: isLong ? '#00C805' : '#ef4444' }}
+        />
+      </div>
 
-      <div className="mt-3 pt-2.5 border-t border-white/[0.06] flex items-center justify-between">
-        <span className="text-white/20 text-[10px] font-mono uppercase tracking-widest">
-          Order Preview
-        </span>
-        <span className="text-white/20 text-[10px] font-mono">via TradeXYZ</span>
+      {/* Footer */}
+      <div className="px-4 py-2.5 bg-[#f5f5f5] border-t border-[#e5e5e5] flex items-center justify-between">
+        <span className="text-[#b3b3b3] text-[10px] uppercase tracking-widest font-medium">Order Preview</span>
+        <span className="text-[#b3b3b3] text-[10px] font-mono">via TradeXYZ</span>
       </div>
     </div>
   )
@@ -601,7 +503,7 @@ function Screen5({
     const tweet =
       `Just set up my first perp trade with @tradexyz — going ${
         isLong ? 'LONG' : 'SHORT'
-      } on ${asset?.label} at ${leverage}x 🚀 Built with @AnthropicAI #FirstPerp #TradeXYZ`
+      } on ${asset?.label} at ${leverage}x Built with @AnthropicAI #FirstPerp #TradeXYZ`
     navigator.clipboard.writeText(tweet).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
@@ -610,146 +512,133 @@ function Screen5({
 
   return (
     <div className="flex flex-col px-5 pt-6 pb-12">
-      {/* Trade header */}
-      <div className="text-center mb-5">
-        <div className="flex items-center justify-center gap-2.5 mb-2">
-          <span className="text-3xl leading-none">{asset?.emoji}</span>
-          <h1 className="text-2xl font-extrabold tracking-tight">{asset?.label}</h1>
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-[1.75rem] font-extrabold tracking-tight text-[#1a1a1a]">
+          {asset?.label}
+        </h1>
+        <div className="flex items-center gap-2 mt-1">
           <span
-            className="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border"
+            className="px-2.5 py-0.5 rounded-md text-xs font-bold uppercase"
             style={
               isLong
-                ? { background: 'rgba(34,197,94,0.12)', color: '#22c55e', borderColor: 'rgba(34,197,94,0.35)' }
-                : { background: 'rgba(239,68,68,0.12)', color: '#ef4444', borderColor: 'rgba(239,68,68,0.35)' }
+                ? { background: '#dcfce7', color: '#16a34a' }
+                : { background: '#fee2e2', color: '#dc2626' }
             }
           >
-            {isLong ? '▲ LONG' : '▼ SHORT'}
+            {isLong ? 'Long' : 'Short'}
           </span>
+          <span className="text-[#737373] text-sm">{leverage}x multiplier</span>
         </div>
-        <p className="text-white/40 text-sm font-medium">
-          {leverage}x multiplier · Your summary is ready
-        </p>
       </div>
 
-      {/* Price + Holding Cost row */}
-      <div className="flex gap-3 mb-4">
-        <div className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4 text-center">
-          <div className="flex items-center justify-center gap-1.5 mb-1.5">
-            <PriceDot status={pricesStatus} />
-            <span className="text-white/45 text-[11px] uppercase tracking-[0.15em] font-semibold">
-              {pricesStatus === 'delayed' ? 'Price (delayed)' : 'Live Price'}
-            </span>
-          </div>
-          <div className="text-[#f59e0b] font-mono font-extrabold text-xl tracking-tight">
+      {/* Stats row */}
+      <div className="flex gap-3 mb-6">
+        <div className="flex-1 border border-[#e5e5e5] rounded-xl p-4">
+          <p className="text-[#737373] text-xs font-medium mb-1.5">
+            {pricesStatus === 'delayed' ? 'Price (delayed)' : 'Live Price'}
+          </p>
+          <p className="text-[#1a1a1a] font-mono font-bold text-xl">
             {price ? formatPrice(price) : '--'}
-          </div>
+          </p>
         </div>
 
         {!fundingError && (
-          <div className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4 text-center">
-            <div className="flex items-center justify-center gap-1 mb-1.5">
-              <span className="text-white/45 text-[11px] uppercase tracking-[0.15em] font-semibold">
-                Holding Cost
-              </span>
+          <div className="flex-1 border border-[#e5e5e5] rounded-xl p-4">
+            <div className="flex items-center gap-1 mb-1.5">
+              <p className="text-[#737373] text-xs font-medium">Holding Cost</p>
               <button
                 onClick={() => setTooltipOpen((v) => !v)}
-                className="w-4 h-4 rounded-full border border-white/25 text-white/35 text-[10px] flex items-center justify-center hover:text-white/60 hover:border-white/50 transition-colors"
+                className="w-4 h-4 rounded-full border border-[#e5e5e5] text-[#737373] text-[10px] flex items-center justify-center hover:border-[#737373] transition-colors"
               >
                 ?
               </button>
             </div>
-            <div className="text-white font-mono font-extrabold text-xl tracking-tight">
+            <p className="text-[#1a1a1a] font-mono font-bold text-xl">
               {fundingRate !== null ? `${fundingRate}%` : '--'}
-            </div>
-            <div className="text-white/30 text-[11px]">per 8 hours</div>
+            </p>
+            <p className="text-[#b3b3b3] text-[11px]">per 8 hours</p>
           </div>
         )}
       </div>
 
-      {/* Holding cost tooltip */}
+      {/* Tooltip */}
       {tooltipOpen && !fundingError && (
-        <div className="mb-4 bg-white/[0.07] border border-white/15 rounded-xl p-3.5 text-sm text-white/75 leading-relaxed">
-          <span className="text-white font-semibold">What's a holding cost?</span>{' '}
-          When you hold a perp (a trade with no expiry date), a small fee is exchanged every 8 hours
-          between people betting up and people betting down — this keeps the perp price in line
-          with the real market price.
+        <div className="mb-5 border border-[#e5e5e5] rounded-xl p-4 text-sm text-[#737373] leading-relaxed bg-[#f5f5f5]">
+          <span className="text-[#1a1a1a] font-semibold">What&apos;s a holding cost?</span>{' '}
+          When you hold a perp, a small fee is exchanged every 8 hours between people betting up
+          and people betting down — this keeps the perp price in line with the real market price.
         </div>
       )}
 
       {/* AI Cards */}
-      <div className="flex flex-col gap-3 mb-6">
-        {aiError ? (
-          <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-5 text-center">
-            <p className="text-2xl mb-2">🤔</p>
-            <p className="text-white/60 text-sm leading-relaxed">
-              Couldn't load AI summary — but your trade setup looks good!
-            </p>
-          </div>
-        ) : !aiData ? (
-          <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#f59e0b] pulse-dot-1" />
-              <span className="text-white/40 text-sm">Loading AI analysis...</span>
-            </div>
-          </div>
-        ) : (
-          <>
-            <AICard icon="🧠" title="What you're betting on" text={aiData.thesis} />
-            <AICard icon="⚠️" title="What could go wrong" text={aiData.risk} />
-            <AICard icon="💡" title="What's a perp?" text={aiData.perpExplain} />
-            <AICard icon="📊" title="Current market vibe" text={aiData.marketVibe} />
-          </>
-        )}
-      </div>
+      <Divider />
+      {aiError ? (
+        <div className="py-6 text-center">
+          <p className="text-[#737373] text-sm">
+            Could not load AI summary — your trade setup still looks good.
+          </p>
+        </div>
+      ) : !aiData ? (
+        <div className="py-4 flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-[#00C805] pulse-dot-1" />
+          <span className="text-[#737373] text-sm">Loading AI analysis...</span>
+        </div>
+      ) : (
+        <div className="divide-y divide-[#e5e5e5]">
+          <AICard title="What you are betting on" text={aiData.thesis} />
+          <AICard title="What could go wrong" text={aiData.risk} />
+          <AICard title="What is a perp?" text={aiData.perpExplain} />
+          <AICard title="Current market conditions" text={aiData.marketVibe} />
+        </div>
+      )}
+      <Divider />
 
       {/* Trade ticket */}
-      <TradeTicket asset={asset} direction={direction} leverage={leverage} price={price} />
+      <div className="mt-5">
+        <TradeTicket asset={asset} direction={direction} leverage={leverage} price={price} />
+      </div>
 
-      {/* Share button */}
+      {/* Share */}
       <button
         onClick={handleShare}
-        className="w-full mb-4 rounded-2xl py-3.5 min-h-[56px] font-semibold text-sm border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08] transition-all duration-150 active:scale-[0.97]"
+        className="w-full mb-3 rounded-xl py-3 font-medium text-sm border border-[#e5e5e5] text-[#737373] hover:border-[#1a1a1a] hover:text-[#1a1a1a] transition-all duration-150 active:scale-[0.98]"
       >
         {copied ? (
-          <span className="text-[#22c55e] font-bold flex items-center justify-center gap-2">
-            <span>✓</span> Copied to clipboard!
-          </span>
+          <span className="text-[#00C805] font-semibold">Copied to clipboard</span>
         ) : (
-          <span className="text-white/80 flex items-center justify-center gap-2">
-            Share Your Trade 📤
-          </span>
+          'Share Your Trade'
         )}
       </button>
 
       {/* CTAs */}
-      <div className="flex flex-col gap-3 mb-6">
+      <div className="flex flex-col gap-2.5 mb-8">
         <a
           href="https://app.trade.xyz"
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full bg-[#22c55e] text-black font-extrabold text-lg rounded-2xl py-4 min-h-[64px] flex items-center justify-center active:scale-[0.97] hover:bg-[#4ade80] text-center glow-green"
+          className="w-full bg-[#00C805] text-white font-bold text-base rounded-xl py-4 flex items-center justify-center hover:bg-[#00a804] transition-colors active:scale-[0.98] text-center"
         >
-          Open This Trade on TradeXYZ →
+          Open This Trade on TradeXYZ
         </a>
         <a
           href="https://app.hyperliquid.xyz"
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full bg-white/[0.06] text-white font-semibold text-base rounded-2xl py-4 min-h-[64px] flex items-center justify-center transition-all duration-150 active:scale-[0.97] hover:bg-white/[0.1] border border-white/[0.12] text-center"
+          className="w-full border border-[#e5e5e5] text-[#1a1a1a] font-semibold text-base rounded-xl py-4 flex items-center justify-center hover:border-[#1a1a1a] transition-colors active:scale-[0.98] text-center"
         >
-          Practice First (No Real Money) →
+          Practice First (No Real Money)
         </a>
       </div>
 
-      {/* Start over */}
       <button
         onClick={onRestart}
-        className="text-white/25 text-sm text-center w-full hover:text-white/45 transition-colors"
+        className="text-[#b3b3b3] text-sm text-center w-full hover:text-[#737373] transition-colors"
       >
-        ← Start over
+        Start over
       </button>
 
-      <p className="text-center text-white/20 text-[11px] mt-6 leading-relaxed">
+      <p className="text-center text-[#b3b3b3] text-[11px] mt-6 leading-relaxed">
         Powered by Anthropic Claude · Data by Finnhub · Built for TradeXYZ
       </p>
     </div>
@@ -763,7 +652,6 @@ export default function App() {
   const [splashVisible, setSplashVisible] = useState(true)
   const [screen, setScreen] = useState(0)
   const [visible, setVisible] = useState(true)
-  const [presentMode, setPresentMode] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState(null)
   const [direction, setDirection] = useState(null)
   const [leverage, setLeverage] = useState(3)
@@ -775,14 +663,12 @@ export default function App() {
   const [aiData, setAiData] = useState(null)
   const [aiError, setAiError] = useState(false)
 
-  // Splash: fade out at 1.2s, unmount at 1.7s
   useEffect(() => {
     const fadeTimer = setTimeout(() => setSplashVisible(false), 1200)
     const unmountTimer = setTimeout(() => setSplash(false), 1700)
     return () => { clearTimeout(fadeTimer); clearTimeout(unmountTimer) }
   }, [])
 
-  // Prices + ticker funding rate on mount
   useEffect(() => {
     fetchPrices().then((p) => {
       setPrices(p)
@@ -796,7 +682,7 @@ export default function App() {
     setTimeout(() => {
       setScreen(next)
       setVisible(true)
-    }, 280)
+    }, 250)
   }, [])
 
   const handleAssetSelect = (asset) => {
@@ -826,14 +712,12 @@ export default function App() {
     if (fundingResult.status === 'fulfilled') {
       setFundingRate(fundingResult.value)
     } else {
-      console.warn('Hyperliquid error:', fundingResult.reason)
       setFundingError(true)
     }
 
     if (aiResult.status === 'fulfilled') {
       setAiData(aiResult.value)
     } else {
-      console.warn('Anthropic error:', aiResult.reason)
       setAiError(true)
     }
 
@@ -853,49 +737,40 @@ export default function App() {
   }
 
   const showDots = screen <= 2
-  const maxWidth = presentMode ? '480px' : '390px'
-  const fontSize = presentMode ? '120%' : '100%'
 
   return (
-    <div
-      className="min-h-screen flex items-start md:items-center justify-center md:py-8"
-      style={{ background: '#0f0f0f', fontFamily: "'Inter', system-ui, sans-serif", fontSize }}
-    >
-      {/* Splash overlay */}
+    <div className="min-h-screen flex items-start md:items-center justify-center bg-white md:py-8">
       {splash && <SplashScreen visible={splashVisible} />}
 
-      {/* Presentation toggle */}
-      <PresentToggle active={presentMode} onToggle={() => setPresentMode((v) => !v)} />
-
-      {/* Phone frame — full-screen on mobile, bordered card on desktop */}
+      {/* Phone frame */}
       <div
-        className="w-full min-h-screen md:min-h-0 md:max-h-[88vh] md:rounded-3xl md:border md:border-zinc-800 md:overflow-y-auto flex flex-col relative"
+        className="w-full min-h-screen md:min-h-0 md:max-h-[88vh] md:rounded-2xl md:border md:border-[#e5e5e5] md:overflow-y-auto flex flex-col"
         style={{
-          maxWidth,
-          transition: 'max-width 0.3s ease',
-          boxShadow: '0 0 0 1px rgba(255,255,255,0.03), 0 32px 80px rgba(0,0,0,0.7)',
+          maxWidth: '390px',
+          boxShadow: '0 4px 32px rgba(0,0,0,0.06)',
         }}
       >
-        {/* Ticker tape — always visible */}
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e5e5]">
+          <span className="font-extrabold text-lg tracking-tight text-[#1a1a1a]">First Perp</span>
+          <span className="text-[#00C805] text-xs font-semibold">Simulation</span>
+        </div>
+
         <TickerTape prices={prices} tickerFunding={tickerFunding} />
 
-        {/* Progress dots */}
         {showDots && <ProgressDots screen={screen} />}
 
-        {/* Screen container */}
         <div
           className="flex-1 flex flex-col"
           style={{
             opacity: visible ? 1 : 0,
-            transform: visible ? 'translateY(0)' : 'translateY(12px)',
-            transition: 'opacity 0.28s ease, transform 0.28s ease',
+            transform: visible ? 'translateY(0)' : 'translateY(8px)',
+            transition: 'opacity 0.25s ease, transform 0.25s ease',
           }}
         >
           {screen === 0 && <Screen1 prices={prices} pricesStatus={pricesStatus} onSelect={handleAssetSelect} />}
           {screen === 1 && <Screen2 asset={selectedAsset} onSelect={handleDirectionSelect} />}
-          {screen === 2 && (
-            <Screen3 leverage={leverage} setLeverage={setLeverage} onContinue={handleSubmitTrade} />
-          )}
+          {screen === 2 && <Screen3 leverage={leverage} setLeverage={setLeverage} onContinue={handleSubmitTrade} />}
           {screen === 3 && <Screen4 />}
           {screen === 4 && (
             <Screen5
